@@ -7,7 +7,7 @@ RUN apt-get update
 ENV APP_ROOT /code
 WORKDIR ${APP_ROOT}/
 COPY requirements.txt ${APP_ROOT}/
-RUN pip install -i https://pypi.dianchu.cc/simple/ -r requirements.txt
+RUN pip install -r requirements.txt
 
 ENV TIME_ZONE=Asia/Shanghai
 RUN echo "${TIME_ZONE}" > /etc/timezone \

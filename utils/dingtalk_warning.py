@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf -8 -*-
 """
-    Created by wq at 2020/7/21.
-    Copyright (c) 2013-present, Xiamen Dianchu Technology Co.,Ltd.
+    Created by w at 2020/7/21.
     Description:钉钉机器人告警
     Changelog: all notable changes to this file will be documented
 """
