@@ -86,6 +86,7 @@ class BLiveClient(ws_base.WebSocketClientBase):
 
         :return: True代表没有降级，如果需要降级后还可用，重载这个函数返回True
         """
+        logger.info(msg=f"bilibili room_id={self.room_id} start.")
         if self._uid is None:
             if not await self._init_uid():
                 logger.warning('room=%d _init_uid() failed', self._tmp_room_id)
@@ -169,7 +170,6 @@ class BLiveClient(ws_base.WebSocketClientBase):
 
     async def _init_room_id_and_owner(self):
         try:
-            print("===========", ROOM_INIT_URL)
             async with self._session.get(
                 ROOM_INIT_URL,
                 headers={'User-Agent': utils.USER_AGENT},

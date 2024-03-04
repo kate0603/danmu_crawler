@@ -92,24 +92,3 @@ def get_usable_proxy(platform: str = "douyin"):
             delete_proxy(proxy_info)
     if proxy_info is None:
         return None
-
-
-if __name__ == "__main__":
-    # __runProxyCheck()
-    # print(get_proxy_url())
-    # print(get_proxy_count())
-    # print(get_proxy())
-    # print(pop_proxy())
-    get_usable_proxy(platform="bilibili")
-    # proxy = {
-    #     "proxy": "8.219.97.248:80",
-    #     "https": True,
-    #     "fail_count": 0,
-    #     "region": "中国 中国  阿里云",
-    #     "anonymous": "",
-    #     "source": "freeProxy11",
-    #     "check_count": 5,
-    #     "last_status": True,
-    #     "last_time": "2024-02-22 09:49:06",
-    # }
-    # delete_proxy(proxy=proxy)

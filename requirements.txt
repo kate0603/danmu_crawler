@@ -32,3 +32,7 @@ psycopg2-binary==2.9.9
 kazoo==2.10.0
 dingtalkchatbot==1.5.7
 aiohttp_proxy==0.1.2
+python-redis-lock==4.0.0
+tzlocal==2.1
+
+jieba==0.42.1

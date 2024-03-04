@@ -10,7 +10,10 @@ from utils.decorator import singleton
 
 # 连接时长
 SOCKET_TIMES = 60 * 30
-REDIS_DB_CONN = "redis://192.168.xx.xx:6379/10"
+# 代理池 redis配置
+REDIS_DB_CONN = "redis://xx.xx.xx.xx:6379/10"
+# 最大并发的任务数量
+TASK_MAX = 100
 
 # zk
 ENV = os.getenv("ENV", "DEV")
@@ -29,3 +32,13 @@ class Config(object):
 
     def db_dws(self, game_id):
         return self.config.get(str(game_id), {}).get("db_dws")
+
+    def redis(self):
+        return self.config.get(
+            "redis_info", {"host": "xx.xx.xx.xx", "port": 6379, "db": 11}
+        )
+
+    def proxy(self):
+        return self.config.get(
+            "proxy_info", {"type": "http", "host": "xx.xx.xx.xx", "port": 7777}
+        )

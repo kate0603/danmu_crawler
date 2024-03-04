@@ -223,9 +223,9 @@ class WebSocketClient(threading.Thread):
         content = data["content"]
         user_id = data["user"]["id"]
         user_nick_name = data["user"]["nickName"]
-        print(
-            f"""[房间Id：'{self.live_room_id}'][用户：{user_id} {user_nick_name}][{event_time}]{content}"""
-        )
+        # print(
+        #     f"""[房间Id：'{self.live_room_id}'][用户：{user_id} {user_nick_name}][{event_time}]{content}"""
+        # )
         log = json.dumps(data, ensure_ascii=False)
         logger.info(
             f"[unPackWebcastChatMessage] [直播间弹幕消息{GlobalVal.commit_num}] [房间Id："
@@ -391,15 +391,15 @@ class WebSocketClient(threading.Thread):
             time.sleep(10)
 
 
-def parseLiveRoomUrl(url, ttwid, proxy_info, game_id):
+def parseLiveRoomUrl(url, ttwid, game_id):
     """
     解析直播的弹幕websocket地址
     :param url:直播地址
     :param ttwid:
-    :param proxy_info:
     :param game_id:
     :return:
     """
+    logger.info(msg=f"douyin web_id={url} start.")
     headers = {
         "authority": "live.douyin.com",
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -411,9 +411,12 @@ def parseLiveRoomUrl(url, ttwid, proxy_info, game_id):
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
     }
     # todo  代理
-    proxy_url = (
-        f"""{"https" if proxy_info["https"] else "http"}://{proxy_info["proxy"]}"""
-    )
+    from config import Config
+
+    proxy = Config().proxy()
+    proxy_url = f"""{proxy["type"]}://{proxy["host"]}:{proxy["port"]}"""
+    print("===douyin代理地址", proxy_url)
+
     res = requests.get(
         url=url,
         headers=headers,
@@ -456,7 +459,7 @@ def parseLiveRoomUrl(url, ttwid, proxy_info, game_id):
         if not res_m3u8_hd1:
             res_m3u8_hd1 = res_m3u8_hd1.get("HD1", "").replace("http", "https")
         logger.info(f"直播流m3u8链接地址是: {res_m3u8_hd1}")
-        print(f"直播流m3u8链接地址是: {res_m3u8_hd1}")
+        # print(f"直播流m3u8链接地址是: {res_m3u8_hd1}")
         # 找到flv直播流地址:区分标清|高清|蓝光
         res_flv_search = re.search(r'flv\\":\\"(.*?)\\"', res)
         res_stream_flv = (
@@ -465,7 +468,7 @@ def parseLiveRoomUrl(url, ttwid, proxy_info, game_id):
         if "https" not in res_stream_flv:
             res_stream_flv = res_stream_flv.replace("http", "https")
         logger.info(f"直播流FLV地址是: {res_stream_flv}")
-        print(f"直播流FLV地址是: {res_stream_flv}")
+        # print(f"直播流FLV地址是: {res_stream_flv}")
         # 开始获取直播间排行
         # live_rank.interval_rank(liveRoomId)
         # 创建websocket客户端，并开始监听消息
@@ -477,13 +480,14 @@ def parseLiveRoomUrl(url, ttwid, proxy_info, game_id):
         )
         # 代理
         obj.ws.run_forever(
-            proxy_type="http",
-            http_proxy_host=proxy_info["proxy"].split(":")[0],
-            http_proxy_port=proxy_info["proxy"].split(":")[1],
+            proxy_type=proxy["type"],
+            http_proxy_host=proxy["host"],
+            http_proxy_port=proxy["port"],
         )
     except Exception as e:
         from utils.dingtalk_warning import dingtalk_api_md
-        dingtalk_api_md(title="抖音直播", text=f"抖音直播弹幕websocket连接失败{e}")
+
+        dingtalk_api_md(title="抖音直播", text=f"抖音直播[{live_room_id}]弹幕websocket连接失败{e}")
 
 
 # 十六进制字符串转protobuf格式 （用于快手网页websocket调试分析包体结构）

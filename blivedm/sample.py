@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import time
+import redis_lock
 import asyncio
 import http.cookies
 from typing import *
@@ -8,9 +10,10 @@ from datetime import datetime
 import blivedm
 import blivedm.models.web as web_models
 from utils.live_log import LiveLog
+from utils.redis_helper import RedisHelper
 
 # 直播间一直存在，因此设定一个结束时间
-from config import SOCKET_TIMES as TIMEOUT
+from config import SOCKET_TIMES as TIMEOUT, TASK_MAX
 
 # 这里填一个已登录账号的cookie。不填cookie也可以连接，但是收到弹幕的用户名会打码，UID会变成0
 SESSDATA = "a2dc5e52%2C1722578108%2Cb6fb0%2A21CjDyvQ46HT-03Oy1s-CD9CwnqDVkOp--hRNKGYuU7T8MuRk_Ehulm5XAvXR7RIQ8m9ESVlpYczF3Rm5GU3QxOTJleEV1SzY1WHJEMUwyNzQzeHVQei1wWlRpNjIteFVERWdmeGpwN0NTaFlNZ1hjRl9uWUNwRnN4YUp5dGphaGF5ZUZhVEIwaG93IIEC"
@@ -27,16 +30,11 @@ async def main(room_ids: list, game_id, sessdata=None):
 
 
 def init_session(sessdata):
-    # from proxy_pool.scheduler import get_usable_proxy
+    from config import Config
 
-    # proxy_info = get_usable_proxy(platform="bilibili")
-    # todo 代理
-    proxy_info = {'proxy': '116.108.35.145:4001', 'https': True, 'fail_count': 0, 'region': '越南 胡志明市  viettel.com.vn', 'anonymous': '', 'source': 'freeProxy11', 'check_count': 2, 'last_status': True, 'last_time': '2024-02-22 10:03:50'}
-    proxy_url = (
-        f"""{"http" if proxy_info["https"] else "http"}://{proxy_info["proxy"]}"""
-    )
-    proxy_url = "http://10.31.14.157:7777"
-    print("===代理地址", proxy_url)
+    proxy = Config().proxy()
+    proxy_url = f"""{proxy["type"]}://{proxy["host"]}:{proxy["port"]}"""
+    print("===bilibili代理地址", proxy_url)
 
     proxy = aiohttp_proxy.ProxyConnector.from_url(proxy_url)
 
@@ -45,8 +43,8 @@ def init_session(sessdata):
     cookies["SESSDATA"]["domain"] = "bilibili.com"
 
     global session
-    # session = aiohttp.ClientSession(connector=proxy, trust_env=True)
-    session = aiohttp.ClientSession()
+    session = aiohttp.ClientSession(connector=proxy, trust_env=True)
+    # session = aiohttp.ClientSession()
     session.cookie_jar.update_cookies(cookies)
 
 
@@ -85,12 +83,13 @@ class MyHandler(blivedm.BaseHandler):
     def _on_heartbeat(
         self, client: blivedm.BLiveClient, message: web_models.HeartbeatMessage
     ):
-        print(f"[{client.room_id}] 心跳")
+        # print(f"[{client.room_id}] 心跳")
+        pass
 
     def _on_danmaku(
         self, client: blivedm.BLiveClient, message: web_models.DanmakuMessage
     ):
-        print(f"[{client.room_id}] {message.uname}：{message.msg}")
+        # print(f"[{client.room_id}] {message.uname}：{message.msg}")
         LiveLog(game_id=self.game_id).write_chat(
             data={
                 "platform": "bilibili",
@@ -103,31 +102,50 @@ class MyHandler(blivedm.BaseHandler):
         )
 
     def _on_gift(self, client: blivedm.BLiveClient, message: web_models.GiftMessage):
-        print(
-            f"[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}"
-            f" （{message.coin_type}瓜子x{message.total_coin}）"
-        )
+        # print(
+        #     f"[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}"
+        #     f" （{message.coin_type}瓜子x{message.total_coin}）"
+        # )
+        pass
 
     def _on_buy_guard(
         self, client: blivedm.BLiveClient, message: web_models.GuardBuyMessage
     ):
-        print(f"[{client.room_id}] {message.username} 购买{message.gift_name}")
+        # print(f"[{client.room_id}] {message.username} 购买{message.gift_name}")
+        pass
 
     def _on_super_chat(
         self, client: blivedm.BLiveClient, message: web_models.SuperChatMessage
     ):
-        print(
-            f"[{client.room_id}] 醒目留言 ¥{message.price} {message.uname}：{message.message}"
-        )
+        # print(
+        #     f"[{client.room_id}] 醒目留言 ¥{message.price} {message.uname}：{message.message}"
+        # )
+        pass
 
 
-def blive_run(room_ids: list, game_id, sessdata: str = None):
+def blive_run(game_id, sessdata: str = None):
     import sys
 
-    if (sys.platform.startswith('win')
-            and sys.version_info[0] == 3
-            and sys.version_info[1] >= 8):
+    if (
+        sys.platform.startswith("win")
+        and sys.version_info[0] == 3
+        and sys.version_info[1] >= 8
+    ):
         policy = asyncio.WindowsSelectorEventLoopPolicy()
         asyncio.set_event_loop_policy(policy)
+    redis_obj = RedisHelper()
+    lock = redis_lock.Lock(redis_obj.r, "redis-lock-bilibili")
+    while True:
+        # 设置redis锁，操作redis
+        if lock.acquire(blocking=False):
+            print("Got the lock.")
+            room_ids = redis_obj.spop(name="bilibili_roomids", count=TASK_MAX)
+            # 释放lock
+            lock.release()
+            # 退出循环
+            break
+        else:
+            print("Someone else has the lock bilibili.")
+            time.sleep(10)
 
     asyncio.run(main(room_ids=room_ids, game_id=game_id, sessdata=sessdata))

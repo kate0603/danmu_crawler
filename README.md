@@ -1,14 +1,17 @@
 # 项目
 - [github项目](https://github.com/kate0603/danmu_crawler)
 ## 流程
-![](https://cdn.nlark.com/yuque/0/2024/jpeg/745518/1708676513581-b1ea0d74-7daa-4382-97c6-394d3184bf14.jpeg)
+![](https://cdn.nlark.com/yuque/0/2024/jpeg/745518/1709280275959-b7a623a1-2a99-41ee-bbd1-08baac0ea791.jpeg)
 ### 代理
 
 - 从多个代理服务网站中爬取免费的ip，验证其可用性之后，放入redis。
 - 定时调度，验证其可用性；同时redis里的ip数量少于最小值时，触发上一个步骤，补充ip。
 - 触发爬虫程序之前，从redis取出一个ip，再次验证可用后，用于request或者websocket的代理。
+### Redis分发服务
+
+- 由Redis上锁，从库中获取一定数量的房间ID后，释放锁。将参数传递给爬虫程序。
 ### 实时弹幕爬虫
-采用进程或者协程的方式获取，但因为直播结束时间未知，所以一定时间后关闭（30分钟）。等待事件通知后重新唤起程序。
+采用进程或者协程的方式获取，但因为直播结束时间未知，所以一定时间后关闭（30分钟）。等待后续重新唤起程序。
 #### bilibili
 采用异步协程，可同时抓取多个房间ID的直播弹幕。
 
@@ -29,6 +32,14 @@
 - 建立websocket长连接（websocket.WebSocketApp().run_forever）。
 - 备注：
    - ttwid填一个已登录账号的cookie。cookie过期时，收到弹幕的用户名会打码，UID会变成111111。
+### 报表
+
+- 使用分词工具【jieba】，分词后入库，由supserset展示词云报表。![image.png](https://cdn.nlark.com/yuque/0/2024/png/745518/1709020239233-523558d2-38b1-4004-b0f8-b5423dcd4581.png#averageHue=%23fdfbf9&clientId=ud2e58a9e-d692-4&from=paste&height=444&id=N9WWI&originHeight=555&originWidth=1682&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=180835&status=done&style=none&taskId=uad8f7955-25cb-457a-bda6-383bd9f2112&title=&width=1345.6)
+## 备注
+
+- 可能出现的问题：
+   - 代理ip断开：Connection to remote host was lost。
+   - 若写入数据库中，则多进程中间会开多个数据库连接。
 # 平台开放API
 
 - [bilibili开放平台](https://openhome.bilibili.com/doc/4/aa909d41-01da-e47e-e64c-f32bc76b8a42)
@@ -66,6 +77,11 @@
 .判断 (Json.取文本 (“common.method”) ＝ “WebcastUpdateFanTicketMessage”)  ' 主播礼物数.判断 (Json.取文本 (“common.method”) ＝ “WebcastCommerceMessage”)  ' 主播小游戏推广信息
 - 爬虫时的用户是匿名：cookie中的ttwid需要刷新。
 - F12控制台输入获得房间ID![image.png](https://cdn.nlark.com/yuque/0/2024/png/745518/1707184365847-00d01d02-2e63-449d-8493-20394e8b6dca.png#averageHue=%23f9efcc&clientId=ub1f64023-9181-4&from=paste&height=424&id=u199c53c8&originHeight=530&originWidth=894&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=95501&status=done&style=none&taskId=ua040201d-7a73-45cd-8835-b8191d7316f&title=&width=715.2)
+- web_rid![image.png](https://cdn.nlark.com/yuque/0/2024/png/745518/1709021314253-e277fc34-b193-4229-84d0-73a316050448.png#averageHue=%23c0dad4&clientId=ued871f45-30c8-4&from=paste&height=34&id=u7aa85210&originHeight=43&originWidth=493&originalType=binary&ratio=1.25&rotation=0&showTitle=false&size=4494&status=done&style=none&taskId=ufbc98aff-d6c3-4d17-9966-d6aac261b83&title=&width=394.4)
+## 分词
+
+- [各种分词工具](https://blog.csdn.net/PolarisRisingWar/article/details/125388765)
+- [jieba分词](https://github.com/fxsjy/jieba)
 # 其他分析产品
 
 - [火烧云数据](https://www.hsydata.com/index?redirect=%2F)：B站、小红书。

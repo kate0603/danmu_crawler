@@ -162,39 +162,6 @@ class BasePostgreSQL(object):
                 except Exception:
                     pass
 
-    def write_to_table(self, df, table_name, if_exists="append", schema="public"):
-        """
-        写入PG
-        :param df:
-        :param table_name:
-        :param if_exists: fail replace append
-        :param schema:
-        :return:
-        """
-        import pandas as pd
-
-        db_engine = self.get_engine()  # 初始化引擎
-        string_data_io = io.StringIO()
-        df.to_csv(string_data_io, sep="|", index=False)
-        pd_sql_engine = pd.io.sql.pandasSQL_builder(db_engine)
-        table = pd.io.sql.SQLTable(
-            table_name,
-            pd_sql_engine,
-            frame=df,
-            index=False,
-            if_exists=if_exists,
-            schema=schema,
-        )
-        table.create()
-        string_data_io.seek(0)
-        # string_data_io.readline()  # remove header
-        with db_engine.connect() as connection:
-            with connection.connection.cursor() as cursor:
-                columns = ",".join(list(map(lambda x: f'"{x}"', df.columns)))
-                copy_cmd = f"COPY {schema}.{table_name} ({columns}) FROM STDIN HEADER DELIMITER '|' CSV"
-                cursor.copy_expert(copy_cmd, string_data_io)
-            connection.connection.commit()
-
 
 mutex = Lock()
 
@@ -228,8 +195,8 @@ class DBDwsManage:
 
 
 class LiveLog(object):
-    def __init__(self, game_id: int):
-        self.db_dws_manage = DBDwsManage().client(game_id)
+    def __init__(self, game_id: int, conn_pool=None):
+        self.db_dws_manage = conn_pool or DBDwsManage().client(game_id)
 
     def read_live_info(
         self, platform: str, start_time: datetime = None, end_time: datetime = None
@@ -243,26 +210,46 @@ class LiveLog(object):
         data = self.db_dws_manage.execute_pd(sql)
         return data
 
+    def read_live_chat(
+        self, platform: str, start_time: datetime = None, end_time: datetime = None
+    ):
+        end_time: datetime = end_time or datetime.now()
+        start_time: datetime = start_time or end_time + timedelta(minutes=-30)
+        sql: str = f"""SELECT * FROM dwd_live_chat
+        WHERE  platform = '{platform}' AND create_time BETWEEN '{start_time}' AND '{end_time}' 
+        """
+        print(sql)
+        data = self.db_dws_manage.execute_pd(sql)
+        return data
+
     def write_chat(self, data):
         table = "dwd_live_chat"
         if isinstance(data, list):
             data = pd.DataFrame(data)
         elif isinstance(data, dict):
             data = pd.DataFrame([data])
+
+        columns = ", ".join(data.columns)
+        values = ", ".join(
+            [
+                f"""({', '.join([str(val) if not isinstance(val, (str, datetime)) else f"'{val}'"  for val in row.values])})"""
+                for _, row in data.iterrows()
+            ]
+        )
+
+        sql = f"INSERT INTO {table} ({columns}) VALUES {values};"
+        # print(sql)
+        self.db_dws_manage.execute(sql=sql)
+
+    def write_chat_word(self, data, log_date, platform):
+        table = "dwd_live_chat_word"
+        if isinstance(data, list):
+            data = pd.DataFrame(data)
+        elif isinstance(data, dict):
+            data = pd.DataFrame([data])
+        sql = f"""DELETE FROM {table} WHERE platform = '{platform}' AND log_date = '{log_date}'"""
+        print(sql)
+        self.db_dws_manage.execute(sql=sql)
+        data["log_date"] = log_date
+        data["platform"] = platform
         self.db_dws_manage.write_to_table(df=data, table_name=table)
-
-
-if __name__ == "__main__":
-    obj = LiveLog(2211)
-    # print(obj.read_live_info(platform='抖音'))
-    data = [
-        {
-            "platform": "douyin",
-            "room_id": "1",
-            "user_id": 1,
-            "user_name": "t",
-            "msg": "test",
-            "log_time": datetime.now(),
-        }
-    ]
-    obj.write_chat(data=data)
