@@ -36,3 +36,5 @@ python-redis-lock==4.0.0
 tzlocal==2.1
 
 jieba==0.42.1
+
+snownlp==0.12.3
